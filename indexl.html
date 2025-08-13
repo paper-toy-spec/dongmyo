@@ -1,0 +1,548 @@
+/* ---------- ALLEY ---------- */
+function alley(){
+  state.scene='alley';
+  
+  // 주화가 0일 때 고리대금업자 등장 확률 높임
+  if (state.res.coins === 0 && Math.random() < 0.7) {
+    return loanShark();
+  }
+  
+  const roll = Math.random();
+  if (roll<0.34) return npcEncounter();
+  if (roll<0.67) return lightFight();
+  return gambling();
+}
+
+// 고리대금업자 이벤트
+function loanShark(){
+  setText(`어둠 속에서 누군가 다가온다.
+  
+"주화가 떨어진 것 같은데... 빌려줄까?"
+
+검은 두건의 사내가 웃는다.
+이빨이 금으로 되어있다.
+
+"이자는... 네 정신력이야."
+(주화 +3, 매 턴 정신 -2)`);
+  
+  const ch = [];
+  
+  // 빌리기 옵션
+  if (!state.flags.hasLoan) {
+    ch.push({text:`주화 3개를 빌린다 (매 턴 정신 -2)`, fn:()=>{
+      state.res.coins += 3;
+      state.flags.hasLoan = true;
+      state.flags.loanTurns = 0;
+      showFloatMsg('주화 +3 (빚)');
+      msg('차가운 주화 3개가 손에 쥐어졌다. "잊지 마. 매 순간 네 정신을 가져갈 거야."');
+      updateHUD();
+      openMarket();
+    }});
+  }
+  
+  // 이미 빚이 있으면 갚기 옵션
+  if (state.flags.hasLoan && state.res.coins >= 5) {
+    ch.push({text:`빚을 갚는다 (주화 -5)`, fn:()=>{
+      state.res.coins -= 5;
+      state.flags.hasLoan = false;
+      showFloatMsg('빚 청산!');
+      msg('사내가 주화를 받아 세어본다. "현명한 선택이야."');
+      updateHUD();
+      openMarket();
+    }});
+  }
+  
+  // 대신 제안
+  ch.push({text:`기억을 판다 (힌트 조각 +2, 정신 -15)`, fn:()=>{
+    addShard(2);
+    losePsy(15);
+    msg('소중한 기억 하나가 사라졌다. 대신 무언가 중요한 것을 깨달았다.');
+    openMarket();
+  }});
+  
+  ch.push({text:`도망친다 (시간 -5)`, fn:()=>{ 
+    spend({time:5}); 
+    msg('간신히 도망쳤다. 하지만 그는 다시 나타날 것이다.');
+    openMarket(); 
+  }});
+  
+  setChoices(ch);
+}
+
+function npcEncounter(){
+  setText(`골목. 등불이 없는 어둠 속에서 손이 나와 소매를 잡는다.
+
+"이거 찾는 거 아니었어?"`);
+  
+  // 주화가 0일 때 특별 옵션
+  const ch = [];
+  
+  if (state.res.coins === 0) {
+    ch.push({text:`"주화가 필요해..." (정신 -10, 주화 +2)`, fn:()=>{
+      losePsy(10);
+      state.res.coins += 2;
+      showFloatMsg('주화 +2');
+      msg('노파가 측은한 눈으로 바라본다. "불쌍한 것... 이걸 가져가렴. 대신 네 행복한 기억 하나를 줘."');
+      updateHUD();
+      openMarket();
+    }});
+  }
+  
+  const base = baseChance('talk');
+  const p = clamp(base + state.stats.empathy*6 - state.meta.heat*5, 10, 95);
+  
+  ch.push({text:`설득해 본다 <span class="prob">성공 ${p}%</span>`, fn:()=>roll(p,
+    ()=>{ 
+      addShard(1); 
+      gain('clues',1); 
+      showFloatMsg('힌트 조각 +1');
+      msg('노파가 비단주머니를 쥐여준다. (힌트 조각+1, 단서+1)'); 
+      openMarket(); 
+    },
+    ()=>{ 
+      heatUp(1); 
+      losePsy(6); 
+      msg('"그 눈빛이 싫어." 손이 사라졌다. (의심도+1, 정신-6)'); 
+      openMarket(); 
+    }
+  )});
+  
+  if (state.char !== '광고사장' && state.stats.empathy>=4) {
+    ch.push({text:`광고사장을 부른다 (감정≥4, 쿨 2턴)`, fn:()=>callCompanion('ad', ()=>{ 
+      addShard(1); 
+      msg('"말은 이렇게 다는 거야." 광고사장이 능숙하게 대화를 이끌었다. (힌트 조각+1)'); 
+      openMarket(); 
+    })});
+  }
+  
+  if (state.char !== '제임스') {
+    ch.push({text:`제임스에게 협상을 맡긴다 (주화 -1, 쿨 2턴)`, fn:()=>callCompanion('james', ()=>{ 
+      gain('clues', 1);
+      msg('"이런 건 내 전문이지." 제임스가 능숙하게 교섭했다. (단서+1)'); 
+      openMarket(); 
+    })});
+  }
+  
+  ch.push({text:'그냥 지나친다 (시간 -3)', fn:()=>{ spend({time:3}); openMarket(); }});
+  setChoices(ch);
+}/* ---------- ALLEY ---------- */
+function alley(){
+  state.scene='alley';
+  
+  // 주화가 없을 때 특별 옵션
+  if (state.res.coins === 0) {
+    setText(`골목. 주머니가<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>동묘 귀시장 · v1.1</title>
+<style>
+:root{
+  --bg:#0b0b0c;--panel:#121213;--ink:#e8e0d8;--muted:#a89f96;--accent:#8b0000;--line:#2a2a2a;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(1100px circle at 50% -180px,#1a0000 0%,#0b0b0c 45%,#000 100%);
+  color:var(--ink);font-family:"Noto Serif KR",Pretendard,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+h1{margin:0 0 6px}
+.btn, .choice{background:linear-gradient(180deg,#191919,#101010);border:1px solid #2b2b2b;color:var(--ink);
+  padding:12px 14px;border-radius:10px;cursor:pointer;display:inline-block;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none}
+.btn:active,.choice:active{border-color:#922;background:linear-gradient(180deg,#3a0000,#260000)}
+.title{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+.game-title{font-size:40px;color:#e35;text-shadow:0 0 26px rgba(139,0,0,.55)}
+.intro{white-space:pre-wrap;color:var(--muted);line-height:1.85;max-width:760px;margin:12px auto 18px}
+.panel{background:linear-gradient(180deg,#171717,#0e0e0f);border:1px solid var(--line);border-radius:12px;padding:16px}
+.story{min-height:220px;white-space:pre-wrap;line-height:1.9;overflow-y:auto;max-height:50vh}
+.choices{margin-top:12px;display:grid;gap:10px}
+.hud{display:none}
+.hud.on{display:block}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.h-title{font-weight:800;color:#e66}
+.statbar{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:10px 0}
+.slab{background:linear-gradient(180deg,#171717,#101012);border:1px solid #2a2a2a;border-radius:10px;padding:8px 10px;text-align:center;font-size:13px}
+.slab .v{display:block;font-weight:800;margin-top:4px}
+.bad{color:#f59}
+.good{color:#9ef0b0}
+.warn{color:#f6d37a}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center}
+.inv{margin-top:10px;padding:10px;border:1px dashed #333;border-radius:10px;display:none}
+.inv.on{display:block}
+.tag{background:#151515;border:1px solid #333;padding:4px 8px;border-radius:999px;font-size:12px;margin:2px}
+.kv{font-size:12px;color:#b9b0a6}
+hr.sep{border:none;border-top:1px solid #272727;margin:10px 0}
+.help{position:fixed;right:0;top:0;bottom:0;width:380px;max-width:94vw;background:#111;border-left:1px solid #2a2a2a;transform:translateX(100%);transition:.25s;z-index:50;overflow-y:auto}
+.help.on{transform:translateX(0)}
+.help .head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #2a2a2a}
+.help .body{padding:12px;height:calc(100% - 52px);overflow:auto}
+.small{font-size:12px;color:#9a8f85}
+.prob{font-size:12px;color:#caa}
+.tip{font-size:12px;color:#9ab1ff}
+.notice{font-size:12px;color:#b7f59e}
+
+/* 튜토리얼 전용 스타일 */
+.tutorial-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:100;display:none}
+.tutorial-overlay.on{display:flex;align-items:center;justify-content:center}
+.tutorial-box{background:var(--panel);border:2px solid var(--accent);border-radius:12px;padding:24px;max-width:500px;width:90%;animation:slideIn 0.3s}
+@keyframes slideIn{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.tutorial-title{font-size:20px;color:#e66;margin-bottom:12px;font-weight:800}
+.tutorial-text{line-height:1.8;margin-bottom:20px;white-space:pre-wrap}
+.tutorial-step{font-size:11px;color:#666;margin-top:12px}
+
+/* 하이라이트 효과 */
+.highlight{animation:pulse 1s infinite;box-shadow:0 0 20px #e66!important}
+@keyframes pulse{0%{opacity:1}50%{opacity:0.6}100%{opacity:1}}
+
+/* 진행도 바 */
+.progress-container{margin:10px 0}
+.progress-bar{height:6px;background:#222;border-radius:3px;position:relative;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#8b0000,#e66);border-radius:3px;transition:width 0.5s}
+.progress-text{font-size:11px;color:#999;margin-top:4px;display:block}
+
+/* 힌트 메시지 */
+.hint-msg{background:rgba(139,0,0,0.2);border:1px solid rgba(139,0,0,0.5);border-radius:8px;padding:8px 12px;margin:8px 0;font-size:12px;animation:fadeIn 0.5s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* 코인 애니메이션 */
+@keyframes coinChange {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); color: #ff0; text-shadow: 0 0 10px #ff0; }
+  100% { transform: scale(1); }
+}
+.coin-anim { animation: coinChange 0.5s; }
+
+/* 동행 표시 */
+.companions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 8px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+}
+.companion-card {
+  padding: 6px 10px;
+  background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
+  border: 1px solid #333;
+  border-radius: 6px;
+  font-size: 11px;
+  text-align: center;
+}
+.companion-card.ready { border-color: #4a4; }
+.companion-card.cooldown { opacity: 0.5; border-color: #666; }
+.comp-name { font-weight: 600; color: #e8e0d8; }
+.comp-skill { color: #999; font-size: 10px; margin-top: 2px; }
+.comp-cd { color: #f66; font-size: 10px; }
+
+/* 인벤토리 개선 */
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.inv-item {
+  background: linear-gradient(135deg, #1a1a1a, #0f0f0f);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 11px;
+  text-align: center;
+  position: relative;
+}
+.inv-item:hover {
+  border-color: #666;
+  transform: translateY(-2px);
+  transition: all 0.2s;
+}
+.item-icon {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+/* 플로팅 메시지 */
+.float-msg {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(139,0,0,0.9);
+  border: 2px solid #e66;
+  border-radius: 12px;
+  padding: 16px 24px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 200;
+  animation: floatUp 2s;
+  pointer-events: none;
+}
+@keyframes floatUp {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  40% { transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -70%); }
+}
+
+@media (max-width:640px){
+  .statbar{grid-template-columns:repeat(3,1fr)}
+  .game-title{font-size:30px}
+  .wrap{padding:10px}
+  .btn, .choice{padding:14px 16px;font-size:14px}
+  .companions { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- TITLE -->
+  <section class="title" id="title">
+    <div>
+      <div class="game-title">동묘 귀시장</div>
+      <div class="intro" id="introText">
+음력 초하루, 상망(上望).
+
+동묘 사당 앞.
+네 명이 모였다.
+
+"또 왔네."
+
+벽을 바라본다.
+여전히 그냥 벽이다.
+
+하지만 가끔, 정말 가끔.
+무언가 열리는 것 같은 기분이 든다.
+      </div>
+
+      <div class="row">
+        <button class="btn" id="btnEnter">벽을 바라본다</button>
+        <button class="btn" id="btnTutorial">처음이신가요?</button>
+        <button class="btn" id="btnHelp">도움말</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TUTORIAL OVERLAY -->
+  <div class="tutorial-overlay" id="tutorialOverlay">
+    <div class="tutorial-box">
+      <div class="tutorial-title" id="tutTitle">제목</div>
+      <div class="tutorial-text" id="tutText">내용</div>
+      <div class="choices" id="tutChoices"></div>
+      <div class="tutorial-step" id="tutStep">1 / 6</div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <section class="hud" id="hud">
+    <div class="header">
+      <div>
+        <div class="h-title">동묘 귀시장</div>
+        <div class="small" id="subinfo"></div>
+      </div>
+      <div class="row">
+        <button class="btn" id="btnHelp2">도움말</button>
+      </div>
+    </div>
+
+    <!-- 진행도 바 -->
+    <div class="progress-container" id="progressContainer" style="display:none">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <span class="progress-text" id="progressText">지하 진입까지 0%</span>
+    </div>
+
+    <!-- 동행 표시 -->
+    <div class="companions" id="companions" style="display:none">
+      <div id="comp1" class="companion-card"></div>
+      <div id="comp2" class="companion-card"></div>
+      <div id="comp3" class="companion-card"></div>
+    </div>
+
+    <!-- Stats / Resources -->
+    <div class="statbar">
+      <div class="slab">이성<div class="v" id="sReason">3</div></div>
+      <div class="slab">감정<div class="v" id="sEmp">3</div></div>
+      <div class="slab">직관<div class="v" id="sInst">3</div></div>
+      <div class="slab">시간<div class="v" id="rTime">60</div></div>
+      <div class="slab">정신<div class="v" id="rPsy">70</div></div>
+      <div class="slab">단서<div class="v" id="rClue">0</div></div>
+    </div>
+    <div class="row kv">
+      <span>주화: <b id="rCoin">3</b></span>
+      <span>의심도(Heat): <b id="rHeat">0</b></span>
+      <span>힌트 조각: <b id="rShard">0</b></span>
+      <span>동행 쿨타임: <b id="rCD">0</b>턴</span>
+    </div>
+
+    <div class="panel">
+      <div class="story" id="story">…</div>
+      <div class="choices" id="choices"></div>
+    </div>
+
+    <div class="inv" id="inv">
+      <div class="small" style="margin-bottom:6px">소지품</div>
+      <div class="inv-grid" id="tags"></div>
+    </div>
+  </section>
+
+  <!-- HELP -->
+  <aside class="help" id="help">
+    <div class="head">
+      <div style="font-weight:800;color:#e6dbd0">도움말</div>
+      <button class="btn" id="btnHelpClose">닫기</button>
+    </div>
+    <div class="body">
+      <h3 style="margin:6px 0 8px;color:#e66">게임 목표</h3>
+      <p class="small">
+        매일 밤 동묘에 모이는 네 명.<br>
+        왜 모이는지 아무도 모릅니다.<br>
+        귀시장을 탐험하며 진실을 찾으세요.<br>
+        <b>힌트 조각 3개</b> 또는 <b>단서 4개</b>를 모으면<br>
+        지하로 내려갈 수 있습니다.
+      </p>
+      <hr class="sep">
+      <h4>자원 관리</h4>
+      <p class="small">
+        ⏰ <b>시간</b>: 60→0 = 새벽 엔딩<br>
+        🧠 <b>정신</b>: 70→0 = 광기 엔딩<br>
+        🪙 <b>주화</b>: 상점 거래 화폐<br>
+        📍 <b>단서</b>: 진실을 찾는 열쇠
+      </p>
+      <h4>능력치 효과</h4>
+      <p class="small">
+        <b>이성</b>: 수수께끼, 도박 성공률↑<br>
+        <b>감정</b>: 설득, 교섭 성공률↑<br>
+        <b>직관</b>: 전투, 위험회피 성공률↑
+      </p>
+      <h4>동행 시스템</h4>
+      <p class="small">
+        선택하지 않은 3명이 동행합니다.<br>
+        각자 특수 능력이 있습니다. (쿨타임 2턴)<br>
+        • 김정호: 상점 가격 할인<br>
+        • 제임스: 도박 성공률 +10%<br>
+        • 광고사장: 교섭 힌트 (감정≥4)<br>
+        • 비리형사: 전투 +10% (정신-5)
+      </p>
+      <h4>상점 규칙</h4>
+      <p class="small">
+        • 각 상점은 <b>1회만</b> 거래 가능<br>
+        • 시간대별로 다른 상점 등장<br>
+        • 수수께끼 상점은 실패해도 아이템 구매 가능
+      </p>
+      <h4>의심도(Heat)</h4>
+      <p class="small">
+        실패할 때마다 +1<br>
+        3 이상: 불리한 이벤트 증가<br>
+        6 이상: 매우 위험
+      </p>
+      <p class="small notice">💡 도움말에는 '누구'의 이름이 없습니다.<br>모든 진실은 직접 발견해야 합니다.</p>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+/* ---------- UTIL ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+function rnd(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+/* ---------- STATE ---------- */
+const state = {
+  scene: 'title',
+  floor: 'G',
+  char: null,
+  stats: { reason:3, empathy:3, instinct:3 },
+  res: { time:60, psyche:70, clues:0, coins:5 },
+  meta: { heat:0, shards:0, turn:0, cd:0, pity:{fight:0,gamble:0,riddle:0} },
+  inv: [],
+  visitedShops: new Set(),
+  lockedShops: new Set(),
+  flags: { 
+    marketSeen:false, 
+    riddleHint:false,
+    exploredAreas: {},
+    tutorialDone: false,
+    hints: {} // 플레이 중 힌트 표시 여부
+  },
+};
+
+/* ---------- TUTORIAL SYSTEM ---------- */
+const TUTORIAL = {
+  currentStep: 0,
+  steps: [
+    {
+      title: '동묘 귀시장에 오신 것을 환영합니다',
+      text: `매일 밤, 네 명이 이유도 모른 채 동묘에 모입니다.
+벽이 열리면 귀시장이 나타납니다.
+
+그곳에서 무언가를 찾아야 한다는 느낌이 듭니다.
+하지만 그것이 무엇인지는... 아무도 모릅니다.
+
+게임의 목표는 점진적으로 밝혀집니다.`,
+      choices: ['다음']
+    },
+    {
+      title: '자원 관리',
+      text: `⏰ 시간: 60에서 시작, 매 행동마다 소모
+   → 0이 되면 새벽이 와서 게임 종료
+
+🧠 정신: 70에서 시작, 충격적인 일에 감소  
+   → 0이 되면 광기에 빠져 게임 종료
+
+🪙 주화: 5개로 시작, 상점 거래에 사용
+   → 0이 되면 빚을 지거나 벌어야 함
+📍 단서: 진실을 찾는 열쇠
+
+자원을 신중하게 관리하세요!`,
+      choices: ['다음'],
+      highlight: ['#rTime', '#rPsy', '#rCoin', '#rClue']
+    },
+    {
+      title: '능력치와 성공률',
+      text: `각 캐릭터는 고유 능력치를 가집니다:
+
+📖 이성: 수수께끼, 분석, 도박에 유리
+💬 감정: 설득, 교섭, 대화에 유리  
+⚡ 직관: 전투, 위험회피에 유리
+
+버튼에 표시되는 성공률%를 확인하세요.
+능력치가 높을수록 성공 확률이 올라갑니다.`,
+      choices: ['다음'],
+      highlight: ['#sReason', '#sEmp', '#sInst']
+    },
+    {
+      title: '상점과 거래',
+      text: `🛍️ 귀시장의 상점들:
+• 각 상점은 한 번만 거래 가능
+• 수수께끼를 풀면 추가 보상
+• 시간대별로 다른 상점 등장
+
+⚠️ 주의사항:
+• 한 번 거래한 상점은 잠깁니다
+• 시간이 지날수록 위험한 상점 등장
+• 대가를 치러야 얻을 수 있습니다`,
+      choices: ['다음']
+    },
+    {
+      title: '골목 탐험',
+      text: `골목에서 일어나는 일들:
+
+👤 NPC 조우: 설득하면 힌트 획득
+⚔️ 전투: 성공시 주화 획득  
+🎲 도박: 주화를 2배로 만들 기회
+🔍 탐험: 숨겨진 장소와 비밀 발견
+
+실패하면 의심도가 올라갑니다.
+의심도가 높으면 불리해집니다!`,
+      choices: ['다음']
+    },
+    {
